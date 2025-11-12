@@ -10,8 +10,6 @@ Este repositorio fue creado como el proyecto final para la materia de **Redes Ne
 
 El proyecto incluye una interfaz web construida con Flask (backend) y HTML/CSS/JS (frontend) que consume el modelo entrenado para realizar predicciones en tiempo real.
 
-_(¡Pega aquí una captura de pantalla de tu `index.html` funcionando!)_
-
 ## 🛠️ Características
 
 - **Modelo Bilingüe (EN/ES):** Utiliza embeddings alineados de fastText.
