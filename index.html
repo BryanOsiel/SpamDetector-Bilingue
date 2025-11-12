@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detector de Spam Bilingüe</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Estilos generales */
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #e0f2f7 0%, #d1e0f0 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+        #container {
+            background-color: #ffffff;
+            padding: 2.5rem 3rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 650px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        h1 {
+            font-size: 2.2rem;
+            color: #333;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        h1 i {
+            margin-right: 12px;
+            color: #007bff;
+        }
+        p.subtitle {
+            font-size: 1.1rem;
+            color: #666;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Estado del modelo */
+        #model-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #e6ffe6;
+            color: #28a745;
+            padding: 0.8rem 1.2rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        #model-status i {
+            margin-right: 8px;
+            font-size: 1.1rem;
+        }
+
+        /* Área de input de mensaje */
+        #message-area {
+            position: relative;
+            margin-bottom: 2rem;
+        }
+        #message-input {
+            width: calc(100% - 2rem); /* Ajuste por padding */
+            min-height: 140px;
+            padding: 1rem;
+            box-sizing: border-box;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            resize: vertical; /* Permite redimensionar verticalmente */
+            transition: border-color 0.2s;
+        }
+        #message-input:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+        .flag {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 1.2rem;
+            opacity: 0.7;
+        }
+
+        /* Botón de análisis */
+        button#predict-button {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, #6a82fb 0%, #fc5c7d 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        button#predict-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        button#predict-button:disabled {
+            background: #c0c0c0;
+            cursor: not-allowed;
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        /* Resultado y barra de confianza */
+        #result-display {
+            margin-top: 2.5rem;
+            padding: 1.5rem 1rem;
+            border-radius: 12px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            display: none; /* Oculto inicialmente */
+            text-align: left;
+            border: 1px solid #e0e0e0;
+        }
+        #result-display.visible {
+            display: block;
+        }
+
+        #prediction-text {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        #prediction-text i {
+            margin-right: 10px;
+            font-size: 1.5rem;
+        }
+
+        .confidence-bar {
+            height: 12px;
+            background-color: #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 10px;
+            position: relative;
+        }
+        .confidence-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 6px;
+            transition: width 0.5s ease-out;
+        }
+        .confidence-label {
+            text-align: right;
+            font-size: 0.95rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* Estilos para Spam */
+        .result-spam {
+            background-color: #fcebeb;
+            border-color: #ef9a9a;
+            color: #d32f2f;
+        }
+        .result-spam #prediction-text i {
+            color: #d32f2f;
+        }
+        .result-spam .confidence-fill {
+            background-color: #d32f2f;
+        }
+
+        /* Estilos para No Spam */
+        .result-ham {
+            background-color: #e8f5e9;
+            border-color: #a5d6a7;
+            color: #388e3c;
+        }
+        .result-ham #prediction-text i {
+            color: #388e3c;
+        }
+        .result-ham .confidence-fill {
+            background-color: #388e3c;
+        }
+
+        /* Sección de ejemplos */
+        .examples-section {
+            margin-top: 3rem;
+            text-align: left;
+        }
+        .examples-section h2 {
+            font-size: 1.3rem;
+            color: #555;
+            margin-bottom: 1.5rem;
+        }
+        .example-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .example-button {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.2rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .example-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .example-button i {
+            margin-right: 10px;
+            font-size: 1.3rem;
+        }
+
+        /* Colores específicos para los botones de ejemplo */
+        .example-spam {
+            background-color: #ffe0b2; /* Naranja claro */
+            color: #e65100; /* Naranja oscuro */
+        }
+        .example-alert {
+            background-color: #ffcdd2; /* Rojo claro */
+            color: #c62828; /* Rojo oscuro */
+        }
+        .example-normal {
+            background-color: #c8e6c9; /* Verde claro */
+            color: #2e7d32; /* Verde oscuro */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <h1><i class="fas fa-shield-alt"></i> Detector de Spam</h1>
+        <p class="subtitle">Detecta mensajes spam con Inteligencia Artificial</p>
+
+        <div id="model-status">
+            <i class="fas fa-check-circle"></i> Modelo cargado y listo
+        </div>
+
+        <div id="message-area">
+            <textarea id="message-input" placeholder="Escribe un mensaje en español o inglés para analizar..."></textarea>
+            <span class="flag" id="detected-flag"></span> </div>
+        
+        <button id="predict-button">Analizar Mensaje</button>
+        
+        <div id="result-display">
+            <div id="prediction-text">
+                <i class="fas fa-question-circle"></i> <span></span>
+            </div>
+            <div class="confidence-bar">
+                <div class="confidence-fill"></div>
+            </div>
+            <div class="confidence-label">Confianza: <span id="confidence-percentage">0%</span></div>
+        </div>
+
+        <div class="examples-section">
+            <h2>Ejemplos para probar:</h2>
+            <div class="example-buttons">
+                <button class="example-button example-spam" data-message="¡Felicidades! Has ganado un viaje a Hawái. Reclama tu premio aquí: [enlace-falso.com]"><i class="fas fa-trophy"></i> SPAM - Premio Falso</button>
+                <button class="example-button example-alert" data-message="Aviso urgente de su banco: Hemos detectado actividad sospechosa en su cuenta. Verifique su identidad ahora: [banco-seguro.link]"><i class="fas fa-exclamation-triangle"></i> SPAM - Alerta Falsa</button>
+                <button class="example-button example-normal" data-message="Hola, ¿qué tal? ¿Quedamos para tomar un café mañana?"><i class="fas fa-smile"></i> NORMAL - Conversación</button>
+                <button class="example-button example-normal" data-message="Recordatorio: Su cita con el Dr. García es el lunes a las 10 AM. Por favor, llegue 15 minutos antes."><i class="fas fa-bell"></i> NORMAL - Notificación</button>
+                
+                <button class="example-button example-spam" data-message="URGENT: Your account has been compromised. Verify your password now at: [fake-link.xyz]"><i class="fas fa-exclamation-circle"></i> SPAM - Account Alert</button>
+                <button class="example-button example-alert" data-message="You've won a FREE iPhone 15! Claim your prize within 24 hours before it expires: [free-prize.co]"><i class="fas fa-gift"></i> SPAM - Free Prize</button>
+                <button class="example-button example-normal" data-message="Hey, how are you? Let's catch up soon!"><i class="fas fa-comment"></i> NORMAL - Chat</button>
+                <button class="example-button example-normal" data-message="Your Amazon order #12345 has been shipped and will arrive by Friday. Track here."><i class="fas fa-shipping-fast"></i> NORMAL - Delivery</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:5000/predict";
+        const messageInput = document.getElementById("message-input");
+        const predictButton = document.getElementById("predict-button");
+        const resultDisplay = document.getElementById("result-display");
+        const predictionText = document.querySelector("#prediction-text span");
+        const predictionIcon = document.querySelector("#prediction-text i");
+        const confidenceFill = document.querySelector(".confidence-fill");
+        const confidencePercentage = document.getElementById("confidence-percentage");
+        const exampleButtons = document.querySelectorAll(".example-button");
+        const detectedFlag = document.getElementById("detected-flag");
+
+        // Simple detección de idioma basado en algunas palabras clave
+        function detectLanguage(text) {
+            const spanishKeywords = ['usted', 'su', 'es', 'la', 'un', 'una', 'qué', 'tal', 'días', 'horas'];
+            const englishKeywords = ['you', 'your', 'is', 'the', 'a', 'an', 'what', 'how', 'days', 'hours'];
+
+            const textLower = text.toLowerCase();
+            let spanishScore = 0;
+            let englishScore = 0;
+
+            spanishKeywords.forEach(keyword => {
+                if (textLower.includes(keyword)) spanishScore++;
+            });
+            englishKeywords.forEach(keyword => {
+                if (textLower.includes(keyword)) englishScore++;
+            });
+
+            if (spanishScore > englishScore && spanishScore > 0) return '🇪🇸';
+            if (englishScore > spanishScore && englishScore > 0) return '🇬🇧';
+            return ''; // Idioma no detectado o mixto
+        }
+
+        // Función para enviar la petición a la API
+        async function getPrediction() {
+            const message = messageInput.value;
+
+            if (message.trim() === "") {
+                resultDisplay.classList.remove('visible', 'result-spam', 'result-ham');
+                predictionText.innerText = "Por favor, escribe un mensaje.";
+                predictionIcon.className = "fas fa-info-circle";
+                confidenceFill.style.width = "0%";
+                confidencePercentage.innerText = "0%";
+                return;
+            }
+
+            predictButton.disabled = true;
+            predictButton.innerText = "Analizando...";
+            resultDisplay.classList.remove('result-spam', 'result-ham');
+            resultDisplay.classList.add('visible'); // Mostrar el resultado vacío mientras carga
+            predictionText.innerText = "Cargando...";
+            predictionIcon.className = "fas fa-spinner fa-spin";
+            confidenceFill.style.width = "0%";
+            confidencePercentage.innerText = "0%";
+
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ "message": message })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const score = parseFloat(data.score) * 100;
+
+                predictionText.innerText = data.prediction === "SPAM" ? "🚨 Es Spam" : "✅ No es Spam";
+                confidencePercentage.innerText = `${score.toFixed(0)}%`;
+                confidenceFill.style.width = `${score}%`;
+
+                if (data.prediction === "SPAM") {
+                    resultDisplay.classList.add("result-spam");
+                    resultDisplay.classList.remove("result-ham");
+                    predictionIcon.className = "fas fa-exclamation-triangle";
+                } else {
+                    resultDisplay.classList.add("result-ham");
+                    resultDisplay.classList.remove("result-spam");
+                    predictionIcon.className = "fas fa-check-circle";
+                }
+
+            } catch (error) {
+                console.error("Error al llamar a la API:", error);
+                predictionText.innerText = "Error al conectar con el servidor.";
+                predictionIcon.className = "fas fa-times-circle";
+                resultDisplay.classList.add("result-spam");
+                resultDisplay.classList.remove("result-ham");
+                confidenceFill.style.width = "0%";
+                confidencePercentage.innerText = "0%";
+            } finally {
+                predictButton.disabled = false;
+                predictButton.innerText = "Analizar Mensaje";
+            }
+        }
+
+        // Event listener para el botón de análisis
+        predictButton.addEventListener("click", getPrediction);
+
+        // Event listeners para los botones de ejemplo
+        exampleButtons.forEach(button => {
+            button.addEventListener("click", () => {
+                messageInput.value = button.dataset.message;
+                getPrediction(); // Ejecutar la predicción automáticamente al cargar un ejemplo
+            });
+        });
+
+        // Detección de idioma al escribir
+        messageInput.addEventListener("input", () => {
+            detectedFlag.innerText = detectLanguage(messageInput.value);
+            if(messageInput.value.trim() === "") {
+                resultDisplay.classList.remove('visible', 'result-spam', 'result-ham');
+                confidenceFill.style.width = "0%";
+                confidencePercentage.innerText = "0%";
+            }
+        });
+
+        // Inicializar el estado de la bandera
+        messageInput.dispatchEvent(new Event('input'));
+    </script>
+
+</body>
+</html>
