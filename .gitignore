@@ -2,10 +2,6 @@
 # Ignorar todos los archivos .vec
 *.vec
 
-# --- Archivo del Modelo Entrenado ---
-# Es buena práctica no subir el modelo, solo el código para entrenarlo
-*.keras
-
 # --- Entorno Virtual de Python ---
 # NUNCA subir el entorno virtual
 .venv/
